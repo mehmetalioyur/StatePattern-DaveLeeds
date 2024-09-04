@@ -1,56 +1,42 @@
 package org.example
 
-fun main() {}//STATE
-interface UserState {
-    fun singUp(user: User, email: String)
-    fun verifyEmail(user: User, token: String)
-    fun viewContent()
-    fun viewProfile(user: User)
-    fun editProfile(user: User, newEmail: String)
+fun main() {}
+enum class UserState(
+    val signUp: (User, String) -> Unit,
+    val verifyEmail: (User, String) -> Unit,
+    val viewContent: () -> Unit,
+    val viewProfile: (User) -> Unit,
+    val editProfile: (User, String) -> Unit,
+) {
+    ANONYMOUS(
+        signUp = { user, email -> println("Signing up with email: $email"); user.email = email; user.state = UNVERIFIED },
+        verifyEmail = { _, _ -> println("You must sign up before verifying your email.") },
+        viewContent = { println("Viewing public content.") },
+        viewProfile = { println("You must sign in to view your profile.") },
+        editProfile = { _, _ -> println("You must sign in to edit your profile") }
+    ),
+    UNVERIFIED(
+        signUp = { _, _ -> println("You are already signed up.") },
+        verifyEmail = { user, token -> println("Verifying email with token: $token"); user.state = AUTHENTICATED },
+        viewContent = { println("Viewing personalized content for unverified account.") },
+        viewProfile = { user -> println("Profile: ${user.email} (Unverified account, please verify your email).") },
+        editProfile = { _, _ -> println("Please verify your account before editing your profile.") }
+    ),
+
+    AUTHENTICATED(
+        signUp = { _, _ -> println("You are already signed up and authenticated.") },
+        verifyEmail = { _, _ -> println("You are already verified.") },
+        viewContent = { println("Viewing personalized content.") },
+        viewProfile = { user -> println("Profile: ${user.email} (Fully authenticated).") },
+        editProfile = { user, newEmail -> println("Profile: Updating email from ${user.email} to $newEmail.");user.email = newEmail }
+    )
 }
 
-// Concrete State
-object Anonymous : UserState {
-    override fun singUp(user: User, email: String) {
-        println("Signing up with email: $email")
-        user.email = email
-        user.state = Unverified
-    }
 
-    override fun verifyEmail(user: User, token: String) = println("You must sign up before verifying your email.")
-    override fun viewContent() = println("Viewing public content.")
-    override fun viewProfile(user: User) = println("You must sign in to view your profile.")
-    override fun editProfile(user: User, newEmail: String) = println("You must sign in to edit your profile")
-}
-
-object Unverified : UserState {
-    override fun singUp(user: User, email: String) = println("You are already signed up.")
-
-    override fun verifyEmail(user: User, token: String) {
-        println("Verifying email with token: $token")
-        user.state = Authenticated
-    }
-
-    override fun viewContent() = println("Viewing personalized content for unverified account.")
-    override fun viewProfile(user: User) = println("Profile: $user.email (Unverified account, please verify your email.)")
-    override fun editProfile(user: User, newEmail: String) = println("Please verify your account before editing your profile.")
-
-}
-
-object Authenticated : UserState {
-    override fun singUp(user: User, email: String) = println("You are already signed up and authenticated.")
-    override fun verifyEmail(user: User, token: String) = println("You are already verified.")
-    override fun viewContent() = println("Viewing personalized content.")
-    override fun viewProfile(user: User) = println("Profile: $user.email (Fully authenticated.)")
-    override fun editProfile(user: User, newEmail: String) {
-        println("Profile: Updating email from ${user.email} to $newEmail")
-        user.email = newEmail
-    }
-}
 
 // CONTEXT
-class User(var email: String? = null, var state: UserState = Anonymous) {
-    fun signUp(email: String) = state.singUp(this, email)
+class User(var email: String? = null, var state: UserState = UserState.ANONYMOUS) {
+    fun signUp(email: String) = state.signUp(this, email)
     fun verifyEmail(token: String) = state.verifyEmail(this, token)
     fun viewContent() = state.viewContent()
     fun viewProfile() = state.viewProfile(this)
